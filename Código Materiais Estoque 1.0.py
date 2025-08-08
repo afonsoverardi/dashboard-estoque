@@ -1,17 +1,18 @@
 import pandas as pd
 import os
 import re
+from datetime import datetime
 
 def processar_estoque_completo(caminho_entrada, caminho_saida, caminho_referencia):
     """
-    Processa a planilha de estoque e a de referência para gerar o arquivo de controle final.
-    Versão corrigida para o erro de KeyError e os FutureWarning.
+    Processa a planilha de estoque e a de referência para gerar o arquivo de controle final,
+    adicionando uma coluna com a data e hora da atualização.
     """
     try:
         print("ETAPA 1: Lendo e processando a planilha de estoque...")
         df_estoque_raw = pd.read_excel(caminho_entrada, skiprows=5, header=None)
         
-        # Lógica de processamento do arquivo de materiais (sem alterações)
+        # Lógica de processamento (sem alterações)
         dados_processados = []
         current_nm = None; current_desc = None; current_saldo_total = 0; current_unidade = ''
         padrao_nm = re.compile(r'^\d{2}\.\d{3}\.\d{3}$')
@@ -40,30 +41,23 @@ def processar_estoque_completo(caminho_entrada, caminho_saida, caminho_referenci
         
         df_final = pd.merge(df_estoque, df_referencia, on='NM', how='outer', suffixes=('', '_ref'))
 
-        # --- CORREÇÃO APLICADA AQUI ---
-        # Corrigimos a lógica de preenchimento de dados e os avisos do pandas
-        
-        # Preenche a Descrição do Material (esta coluna pode existir em ambos os arquivos)
         df_final['Descrição do Material'] = df_final['Descrição do Material'].fillna(df_final['Descrição do Material_ref'])
-
-        # Preenche os valores para itens que só existem na referência
         df_final['Saldo do Estoque'] = df_final['Saldo do Estoque'].fillna(0)
         df_final['Unidade de Medida'] = df_final['Unidade de Medida'].fillna('UN')
 
-        # Garante que as colunas MRP e Classe existam e preenche valores nulos com texto vazio
         for col in ['MRP', 'Classe']:
-            # Se a coluna de referência existir, usa-a para preencher NAs
             if col + '_ref' in df_final.columns:
                  df_final[col] = df_final[col].fillna(df_final[col + '_ref'])
-            # Se a coluna ainda não existir, cria uma vazia
             if col not in df_final.columns:
                  df_final[col] = ''
-            # Preenche quaisquer NAs restantes com vazio
             df_final[col] = df_final[col].fillna('')
         
-        # Seleciona e ordena as colunas finais para o dashboard
-        colunas_finais = ['NM', 'Descrição do Material', 'Saldo do Estoque', 'Unidade de Medida', 'MRP', 'Classe']
-        df_final = df_final[colunas_finais].sort_values(by='NM').reset_index(drop=True)
+        agora = datetime.now()
+        timestamp_str = agora.strftime("%d/%m/%Y %H:%M:%S")
+        df_final['Última Atualização'] = timestamp_str
+
+        colunas_finais = ['NM', 'Descrição do Material', 'Saldo do Estoque', 'Unidade de Medida', 'MRP', 'Classe', 'Última Atualização']
+        df_final = df_final[colunas_finais].sort_values(by='Descrição do Material').reset_index(drop=True)
 
         df_final.to_excel(caminho_saida, index=False)
         print(f"SUCESSO: Arquivo '{caminho_saida}' foi criado/atualizado com sucesso.")
@@ -77,8 +71,18 @@ def processar_estoque_completo(caminho_entrada, caminho_saida, caminho_referenci
 
 # --- PONTO DE EXECUÇÃO DO SCRIPT ---
 if __name__ == '__main__':
-    arquivo_entrada_local = os.path.join('Planilha Base', 'Materiais.xlsx')
-    arquivo_referencia_local = 'NM materiais do SMS SI.xlsx'
-    arquivo_saida_local = 'Controle de Materiais Estoque.xlsx'
+    # --- CAMINHOS ABSOLUTOS AJUSTADOS CONFORME SOLICITADO ---
+    
+    # --- CORREÇÃO APLICADA AQUI ---
+    # Caminho para o arquivo de entrada bruto, com o nome correto 'Materiais.xlsx'
+    arquivo_entrada_local = r'C:\Users\E5QV\OneDrive - PETROBRAS\Documentos\GitHub\dashboard-estoque\Materiais.xlsx'
+    
+    # Caminho para o arquivo de referência
+    arquivo_referencia_local = r'C:\Users\E5QV\OneDrive - PETROBRAS\Documentos\GitHub\dashboard-estoque\NM materiais do SMS SI.xlsx'
+    
+    # Caminho completo para o arquivo de saída
+    pasta_saida = r'C:\Users\E5QV\OneDrive - PETROBRAS\Documentos\GitHub\dashboard-estoque'
+    nome_arquivo_saida = 'Controle de Materiais Estoque.xlsx'
+    arquivo_saida_local = os.path.join(pasta_saida, nome_arquivo_saida)
     
     processar_estoque_completo(arquivo_entrada_local, arquivo_saida_local, arquivo_referencia_local)
