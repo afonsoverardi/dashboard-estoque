@@ -5,7 +5,10 @@ from PIL import Image, ImageOps
 
 # --- Configuração da Página ---
 st.set_page_config(layout="wide", page_title="Estoque de Materiais")
-st.title("Visão Geral do Estoque")
+
+# --- Inicialização do Estado da Sessão (para a função de zoom) ---
+if 'item_para_zoom' not in st.session_state:
+    st.session_state.item_para_zoom = None
 
 # --- Funções Auxiliares ---
 @st.cache_data
@@ -36,31 +39,33 @@ def padronizar_imagem(caminho, tamanho_final=(220, 220)):
     except Exception: return placeholder_url
 
 def criar_cartao_material(item):
-    """
-    Cria a visualização final do cartão, com layout e cor de texto ajustados.
-    """
-    # --- AJUSTE DE ALINHAMENTO ---
-    # Reintroduzimos a altura fixa para garantir que todos os cartões sejam idênticos
-    with st.container(border=True, height=420): 
+    """Cria o cartão com layout final e ícone de zoom funcional."""
+    with st.container(border=True, height=420):
         st.image(item['imagem_objeto'], use_container_width=True)
         st.markdown(f"<strong>{item['Descrição do Material']}</strong>", unsafe_allow_html=True)
+
+        col_info, col_zoom = st.columns([4, 1])
+        with col_info:
+            st.caption(f"NM: {item['NM']} | MRP: {item['MRP']}")
+            
+            # Texto do estoque com fonte pequena e cor branca (via CSS inline)
+            estoque_html = f"""
+            <p style="font-size: 0.9em; color: #FAFAFA;">
+                <strong>Estoque:</strong> {item['Saldo do Estoque']} {item['Unidade de Medida']}
+            </p>
+            """
+            st.markdown(estoque_html, unsafe_allow_html=True)
         
-        st.caption(f"NM: {item['NM']} | MRP: {item['MRP']}")
-        
-        # --- AJUSTE DE COR E TAMANHO DA FONTE ---
-        # Usamos markdown com CSS inline para ter o tamanho pequeno com a cor branca
-        estoque_html = f"""
-        <p style="font-size: 0.9em; color: #FAFAFA;">
-            <strong>Estoque:</strong> {item['Saldo do Estoque']} {item['Unidade de Medida']}
-        </p>
-        """
-        st.markdown(estoque_html, unsafe_allow_html=True)
+        with col_zoom:
+            if st.button("🔍", key=f"zoom_{item['NM']}", help="Ampliar imagem"):
+                st.session_state.item_para_zoom = item['NM']
+                st.rerun()
 
 # --- Lógica Principal do Dashboard ---
 df = carregar_dados()
 
 if df is not None:
-    # Preparação dos dados de imagem
+    # Preparação dos dados de imagem (colunas para thumbnail e para zoom)
     df['NM'] = df['NM'].astype(str)
     caminho_base_imagens = "Imagens"
     def obter_caminho_real(nm):
@@ -70,52 +75,68 @@ if df is not None:
         caminho_png = os.path.join(caminho_base_imagens, f"{nome_arquivo}.png")
         if os.path.exists(caminho_png): return caminho_png
         return None
-    df['imagem_objeto'] = df['NM'].apply(obter_caminho_real).apply(padronizar_imagem)
-    
-    # Filtros e exibição da galeria
-    with st.sidebar:
-        try:
-            logo = Image.open("petrobras_logo.png")
-            st.image(logo, use_container_width=True)
-        except FileNotFoundError:
-            st.error("Logo não encontrada.")
-        
-        st.header("Filtros")
-        termo_busca = st.text_input("Buscar por Descrição:")
-        st.subheader("Filtrar por Classe")
-        classes_unicas = sorted(df['Classe'].unique())
-        with st.expander("Selecionar Classes", expanded=True):
-            selecionar_todas_classes = st.checkbox("Selecionar Todas", value=True, key='select_all_classes')
-            classes_selecionadas = [cls for cls in classes_unicas if st.checkbox(cls, value=selecionar_todas_classes, key=f"check_{cls}")]
-        
-        st.subheader("Filtrar por MRP")
-        df_filtrado_por_classe = df[df['Classe'].isin(classes_selecionadas)] if classes_selecionadas else df
-        mrps_disponiveis = sorted(df_filtrado_por_classe['MRP'].unique())
-        with st.expander("Selecionar MRPs", expanded=True):
-            selecionar_todos_mrps = st.checkbox("Selecionar Todos", value=True, key='select_all_mrps')
-            mrps_selecionados = [mrp for mrp in mrps_disponiveis if st.checkbox(mrp, value=selecionar_todos_mrps, key=f"check_{mrp}")]
-    
-    # Aplicação dos filtros
-    df_filtrado = df
-    if classes_selecionadas: df_filtrado = df_filtrado[df_filtrado['Classe'].isin(classes_selecionadas)]
-    if mrps_selecionados: df_filtrado = df_filtrado[df_filtrado['MRP'].isin(mrps_selecionados)]
-    if termo_busca: df_filtrado = df_filtrado[df_filtrado['Descrição do Material'].str.contains(termo_busca, case=False)]
-    
-    st.caption(f"Exibindo {len(df_filtrado)} de {len(df)} itens.")
-    st.divider()
+    df['caminho_original'] = df['NM'].apply(obter_caminho_real)
+    df['imagem_objeto'] = df['caminho_original'].apply(padronizar_imagem)
 
-    if df_filtrado.empty:
-        st.warning("Nenhum item corresponde aos filtros selecionados.")
+    # LÓGICA DE EXIBIÇÃO: MODO ZOOM OU MODO GALERIA
+    if st.session_state.item_para_zoom:
+        # Se um item foi selecionado, exibe a tela de zoom
+        item_selecionado = df[df['NM'] == st.session_state.item_para_zoom].iloc[0]
+        
+        st.header(f"Detalhe: {item_selecionado['Descrição do Material']}")
+        
+        if st.button("⬅️ Voltar para a Galeria"):
+            st.session_state.item_para_zoom = None
+            st.rerun()
+            
+        st.image(item_selecionado['caminho_original'], width=1200)
+
     else:
-        classes_para_exibir = sorted(df_filtrado['Classe'].unique())
-        for classe in classes_para_exibir:
-            with st.expander(f"**Classe: {classe}** ({len(df_filtrado[df_filtrado['Classe'] == classe])} itens)", expanded=True):
-                df_da_classe = df_filtrado[df_filtrado['Classe'] == classe]
-                num_colunas = 7
-                cols = st.columns(num_colunas)
-                for index, item in df_da_classe.reset_index(drop=True).iterrows():
-                    col_atual = cols[index % num_colunas]
-                    with col_atual:
-                        criar_cartao_material(item)
+        # Se nenhum item estiver selecionado, exibe a galeria principal
+        st.title("Visão Geral do Estoque")
+        
+        with st.sidebar:
+            try:
+                logo = Image.open("petrobras_logo.png")
+                st.image(logo, use_container_width=True)
+            except FileNotFoundError:
+                st.error("Logo não encontrada.")
+            
+            st.header("Filtros")
+            termo_busca = st.text_input("Buscar por Descrição:")
+            st.subheader("Filtrar por Classe")
+            classes_unicas = sorted(df['Classe'].unique())
+            with st.expander("Selecionar Classes", expanded=True):
+                selecionar_todas_classes = st.checkbox("Selecionar Todas", value=True, key='select_all_classes')
+                classes_selecionadas = [cls for cls in classes_unicas if st.checkbox(cls, value=selecionar_todas_classes, key=f"check_{cls}")]
+            
+            st.subheader("Filtrar por MRP")
+            df_filtrado_por_classe = df[df['Classe'].isin(classes_selecionadas)] if classes_selecionadas else df
+            mrps_disponiveis = sorted(df_filtrado_por_classe['MRP'].unique())
+            with st.expander("Selecionar MRPs", expanded=True):
+                selecionar_todos_mrps = st.checkbox("Selecionar Todos", value=True, key='select_all_mrps')
+                mrps_selecionados = [mrp for mrp in mrps_disponiveis if st.checkbox(mrp, value=selecionar_todos_mrps, key=f"check_{mrp}")]
+        
+        df_filtrado = df
+        if classes_selecionadas: df_filtrado = df_filtrado[df_filtrado['Classe'].isin(classes_selecionadas)]
+        if mrps_selecionados: df_filtrado = df_filtrado[df_filtrado['MRP'].isin(mrps_selecionados)]
+        if termo_busca: df_filtrado = df_filtrado[df_filtrado['Descrição do Material'].str.contains(termo_busca, case=False)]
+        
+        st.caption(f"Exibindo {len(df_filtrado)} de {len(df)} itens.")
+        st.divider()
+
+        if df_filtrado.empty:
+            st.warning("Nenhum item corresponde aos filtros selecionados.")
+        else:
+            classes_para_exibir = sorted(df_filtrado['Classe'].unique())
+            for classe in classes_para_exibir:
+                with st.expander(f"**Classe: {classe}** ({len(df_filtrado[df_filtrado['Classe'] == classe])} itens)", expanded=True):
+                    df_da_classe = df_filtrado[df_filtrado['Classe'] == classe]
+                    num_colunas = 7
+                    cols = st.columns(num_colunas)
+                    for index, item in df_da_classe.reset_index(drop=True).iterrows():
+                        col_atual = cols[index % num_colunas]
+                        with col_atual:
+                            criar_cartao_material(item)
 else:
     st.warning("Aguardando o carregamento dos dados.")
