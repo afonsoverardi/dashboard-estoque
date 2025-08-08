@@ -1,12 +1,18 @@
 [theme]
-# Define o tema base como escuro, que o servidor vai ler
+# Define o tema base como escuro
 base="dark"
 
-# Define a cor primária (verde Petrobras)
-primaryColor="#00A859"
+# Cor primária (usada nos filtros, botões, etc.) - Amarelo Petrobras
+primaryColor="#FFC700"
 
-# Cores de fundo e texto para o tema escuro
+# Cor de fundo principal - Cinza bem escuro
 backgroundColor="#0E1117"
+
+# Cor de fundo secundária (barra lateral, interior dos cartões) - Cinza um pouco mais claro
 secondaryBackgroundColor="#262730"
+
+# Cor do texto principal - Branco suave
 textColor="#FAFAFA"
+
+# Fonte padrão
 font="sans serif"
