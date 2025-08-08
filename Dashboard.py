@@ -6,8 +6,8 @@ from PIL import Image, ImageOps
 # --- Configuração da Página ---
 st.set_page_config(layout="wide", page_title="Estoque de Materiais")
 
-# --- Título Principal ---
-st.title("Visão Geral do Estoque")
+# --- Título Principal Alterado ---
+st.title("Visão Geral do Estoque da Segurança Ocupacional")
 
 # --- Inicialização do Estado da Sessão ---
 if 'item_para_zoom' not in st.session_state:
@@ -19,7 +19,6 @@ def carregar_dados():
     caminho_excel = 'Controle de Materiais Estoque.xlsx'
     try:
         df = pd.read_excel(caminho_excel)
-        # Garante que as colunas essenciais existam e preenche valores nulos
         if 'Classe' not in df.columns: df['Classe'] = 'Sem Classe'
         else: df['Classe'] = df['Classe'].fillna('Sem Classe')
         if 'MRP' not in df.columns: df['MRP'] = 'N/A'
@@ -45,20 +44,14 @@ def padronizar_imagem(caminho, tamanho_final=(220, 220)):
     except Exception: return placeholder_url
 
 def criar_cartao_material(item):
-    """Cria o cartão com o ícone de zoom e a cor do estoque corrigida."""
+    """Cria o cartão com o ícone de zoom."""
     with st.container(border=True, height=420):
         st.image(item['imagem_objeto'], use_container_width=True)
         st.markdown(f"<strong>{item['Descrição do Material']}</strong>", unsafe_allow_html=True)
 
         col_info, col_zoom = st.columns([4, 1])
         with col_info:
-            st.caption(f"NM: {item['NM']} | MRP: {item['MRP']}")
-            estoque_html = f"""
-            <p style="font-size: 0.9em; color: #FAFAFA; margin-bottom: 0;">
-                <strong>Estoque:</strong> {item['Saldo do Estoque']} {item['Unidade de Medida']}
-            </p>
-            """
-            st.markdown(estoque_html, unsafe_allow_html=True)
+            st.caption(f"NM: {item['NM']} | MRP: {item['MRP']}\n**Estoque:** {item['Saldo do Estoque']} {item['Unidade de Medida']}")
         with col_zoom:
             if st.button("🔍", key=f"zoom_{item['NM']}", help="Ampliar imagem"):
                 st.session_state.item_para_zoom = item['NM']
@@ -87,10 +80,13 @@ if df is not None:
     # LÓGICA DE EXIBIÇÃO: ZOOM OU GALERIA
     if st.session_state.item_para_zoom:
         item_selecionado = df[df['NM'] == st.session_state.item_para_zoom].iloc[0]
+        
         st.header(f"Detalhe: {item_selecionado['Descrição do Material']}")
+        
         if st.button("⬅️ Voltar para a Galeria"):
             st.session_state.item_para_zoom = None
             st.rerun()
+            
         st.image(item_selecionado['caminho_original'], width=1200)
 
     else:
@@ -102,8 +98,6 @@ if df is not None:
             except FileNotFoundError:
                 st.error("Logo não encontrada.")
             
-            # --- ALTERAÇÃO APLICADA AQUI ---
-            # Exibe a data da última atualização com fonte pequena (caption)
             if not df.empty:
                 ultima_atualizacao = df['Última Atualização'].iloc[0]
                 st.caption(f"Dados atualizados em:  \n{ultima_atualizacao}")
