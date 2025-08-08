@@ -89,7 +89,6 @@ if df is not None:
         with st.sidebar:
             try:
                 logo = Image.open("petrobras_logo.png")
-                # --- CORREÇÃO APLICADA AQUI ---
                 st.image(logo, use_container_width=True)
             except FileNotFoundError:
                 st.error("Logo não encontrada.")
@@ -125,8 +124,11 @@ if df is not None:
             for classe in classes_para_exibir:
                 with st.expander(f"**Classe: {classe}** ({len(df_filtrado[df_filtrado['Classe'] == classe])} itens)", expanded=True):
                     df_da_classe = df_filtrado[df_filtrado['Classe'] == classe]
-                    num_colunas = 6
+                    
+                    # --- ALTERAÇÃO APLICADA AQUI ---
+                    num_colunas = 8
                     cols = st.columns(num_colunas)
+                    
                     for index, item in df_da_classe.reset_index(drop=True).iterrows():
                         col_atual = cols[index % num_colunas]
                         with col_atual:
