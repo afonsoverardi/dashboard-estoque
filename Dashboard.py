@@ -6,7 +6,22 @@ from PIL import Image, ImageOps
 # --- Configuração da Página ---
 st.set_page_config(layout="wide", page_title="Estoque de Materiais")
 
-# --- Inicialização do Estado da Sessão ---
+# --- CABEÇALHO COM LOGO E TÍTULO ---
+# Usamos colunas para alinhar a logo ao lado do título
+col1, col2 = st.columns([1, 4]) # A coluna do título é 4x maior que a da logo
+with col1:
+    try:
+        # O script vai procurar o arquivo 'petrobras_logo.png' na pasta principal do projeto
+        logo = Image.open("petrobras_logo.png")
+        st.image(logo, width=150) 
+    except FileNotFoundError:
+        # Mensagem que aparece se a logo não for encontrada no repositório
+        st.error("Logo 'petrobras_logo.png' não encontrada.")
+with col2:
+    st.title("Visão Geral do Estoque")
+
+
+# --- Inicialização do Estado da Sessão (para a função de zoom) ---
 if 'item_para_zoom' not in st.session_state:
     st.session_state.item_para_zoom = None
 
@@ -39,7 +54,7 @@ def padronizar_imagem(caminho, tamanho_final=(220, 220)):
     except Exception: return placeholder_url
 
 def criar_cartao_material(item):
-    """Cria o cartão com o ícone de zoom restaurado."""
+    """Cria o cartão com o ícone de zoom."""
     with st.container(border=True, height=420):
         st.image(item['imagem_objeto'], use_container_width=True)
         st.markdown(f"<strong>{item['Descrição do Material']}</strong>", unsafe_allow_html=True)
@@ -71,14 +86,18 @@ if df is not None:
 
     # LÓGICA DE EXIBIÇÃO: ZOOM OU GALERIA
     if st.session_state.item_para_zoom:
+        # .iloc[0] é a forma correta e mais simples de pegar a primeira linha do resultado
         item_selecionado = df[df['NM'] == st.session_state.item_para_zoom].iloc[0]
+        
         st.header(f"Detalhe: {item_selecionado['Descrição do Material']}")
+        
         if st.button("⬅️ Voltar para a Galeria"):
             st.session_state.item_para_zoom = None
             st.rerun()
+            
         st.image(item_selecionado['caminho_original'], width=1200)
+
     else:
-        st.title("Visão Geral do Estoque")
         # Filtros e exibição da galeria
         st.sidebar.header("Filtros")
         termo_busca = st.sidebar.text_input("Buscar por Descrição:")
@@ -87,22 +106,22 @@ if df is not None:
         with st.sidebar.expander("Selecionar Classes", expanded=True):
             selecionar_todas_classes = st.checkbox("Selecionar Todas", value=True, key='select_all_classes')
             classes_selecionadas = [cls for cls in classes_unicas if st.checkbox(cls, value=selecionar_todas_classes, key=f"check_{cls}")]
+        
         st.sidebar.subheader("Filtrar por MRP")
         df_filtrado_por_classe = df[df['Classe'].isin(classes_selecionadas)] if classes_selecionadas else df
         mrps_disponiveis = sorted(df_filtrado_por_classe['MRP'].unique())
         with st.sidebar.expander("Selecionar MRPs", expanded=True):
             selecionar_todos_mrps = st.checkbox("Selecionar Todos", value=True, key='select_all_mrps')
             mrps_selecionados = [mrp for mrp in mrps_disponiveis if st.checkbox(mrp, value=selecionar_todos_mrps, key=f"check_{mrp}")]
+        
         df_filtrado = df
         if classes_selecionadas: df_filtrado = df_filtrado[df_filtrado['Classe'].isin(classes_selecionadas)]
         if mrps_selecionados: df_filtrado = df_filtrado[df_filtrado['MRP'].isin(mrps_selecionados)]
         if termo_busca: df_filtrado = df_filtrado[df_filtrado['Descrição do Material'].str.contains(termo_busca, case=False)]
         
-        # --- ALTERAÇÃO APLICADA AQUI ---
-        # Trocamos st.info por st.caption para um visual mais limpo e menor
         st.caption(f"Exibindo {len(df_filtrado)} de {len(df)} itens.")
         st.divider()
-        
+
         if df_filtrado.empty:
             st.warning("Nenhum item corresponde aos filtros selecionados.")
         else:
