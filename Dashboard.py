@@ -7,7 +7,6 @@ from PIL import Image, ImageOps
 st.set_page_config(layout="wide", page_title="Estoque de Materiais")
 
 # --- Título Principal ---
-# O título agora ocupa a largura total da página, pois a logo foi movida
 st.title("Visão Geral do Estoque")
 
 # --- Inicialização do Estado da Sessão ---
@@ -87,11 +86,11 @@ if df is not None:
 
     else:
         # --- FILTROS E LOGO NA BARRA LATERAL ---
-        # A logo agora é o primeiro item da barra lateral
         with st.sidebar:
             try:
                 logo = Image.open("petrobras_logo.png")
-                st.image(logo, use_column_width=True)
+                # --- CORREÇÃO APLICADA AQUI ---
+                st.image(logo, use_container_width=True)
             except FileNotFoundError:
                 st.error("Logo não encontrada.")
             
