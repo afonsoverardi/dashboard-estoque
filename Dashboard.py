@@ -42,14 +42,25 @@ def padronizar_imagem(caminho, tamanho_final=(220, 220)):
     except Exception: return placeholder_url
 
 def criar_cartao_material(item):
-    """Cria o cartão com o ícone de zoom."""
+    """Cria o cartão com o ícone de zoom e a cor do estoque corrigida."""
     with st.container(border=True, height=420):
         st.image(item['imagem_objeto'], use_container_width=True)
         st.markdown(f"<strong>{item['Descrição do Material']}</strong>", unsafe_allow_html=True)
 
         col_info, col_zoom = st.columns([4, 1])
         with col_info:
-            st.caption(f"NM: {item['NM']} | MRP: {item['MRP']}\n**Estoque:** {item['Saldo do Estoque']} {item['Unidade de Medida']}")
+            # NM e MRP continuam como legenda (texto sutil)
+            st.caption(f"NM: {item['NM']} | MRP: {item['MRP']}")
+            
+            # --- CORREÇÃO APLICADA AQUI ---
+            # Saldo do Estoque usa markdown com CSS para ter fonte pequena e cor branca
+            estoque_html = f"""
+            <p style="font-size: 0.9em; color: #FAFAFA; margin-bottom: 0;">
+                <strong>Estoque:</strong> {item['Saldo do Estoque']} {item['Unidade de Medida']}
+            </p>
+            """
+            st.markdown(estoque_html, unsafe_allow_html=True)
+
         with col_zoom:
             if st.button("🔍", key=f"zoom_{item['NM']}", help="Ampliar imagem"):
                 st.session_state.item_para_zoom = item['NM']
@@ -59,8 +70,7 @@ def criar_cartao_material(item):
 df = carregar_dados()
 
 if df is not None:
-    # --- AJUSTE DE ORDENAÇÃO APLICADO AQUI ---
-    # Garante que o dataframe seja ordenado pela descrição do material logo após o carregamento
+    # Garante a ordenação alfabética pela descrição
     df = df.sort_values(by='Descrição do Material').reset_index(drop=True)
 
     # Preparação dos dados de imagem
@@ -124,11 +134,12 @@ if df is not None:
         if df_filtrado.empty:
             st.warning("Nenhum item corresponde aos filtros selecionados.")
         else:
+            # Ordena as classes para exibição alfabética
             classes_para_exibir = sorted(df_filtrado['Classe'].unique())
             for classe in classes_para_exibir:
                 with st.expander(f"**Classe: {classe}** ({len(df_filtrado[df_filtrado['Classe'] == classe])} itens)", expanded=True):
-                    # Ordena os itens DENTRO de cada classe também
-                    df_da_classe = df_filtrado[df_filtrado['Classe'] == classe].sort_values(by='Descrição do Material')
+                    # Pega os itens da classe e garante que eles também estejam ordenados pela descrição
+                    df_da_classe = df_filtrado[df_filtrado['Classe'] == classe] # A ordenação principal do df já se aplica aqui
                     
                     num_colunas = 7
                     cols = st.columns(num_colunas)
