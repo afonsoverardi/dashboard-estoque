@@ -1,18 +1,18 @@
 [theme]
-# Define o tema base como escuro
-base="dark"
+# Define o tema base como claro
+base="light"
 
-# Cor primária (usada nos filtros, botões, etc.) - Amarelo Petrobras
-primaryColor="#FFC700"
+# Cor primária (usada nos filtros, botões, etc.) - Verde Petrobras
+primaryColor="#00A859"
 
-# Cor de fundo principal - Cinza bem escuro
-backgroundColor="#0E1117"
+# Cor do fundo principal da aplicação - Cinza muito claro, mais suave que branco puro
+backgroundColor="#F0F2F6"
 
-# Cor de fundo secundária (barra lateral, interior dos cartões) - Cinza um pouco mais claro
-secondaryBackgroundColor="#262730"
+# Cor de fundo de elementos secundários (barra lateral, interior dos cartões) - Branco
+secondaryBackgroundColor="#FFFFFF"
 
-# Cor do texto principal - Branco suave
-textColor="#FAFAFA"
+# Cor do texto principal - Cinza escuro
+textColor="#262730"
 
 # Fonte padrão
 font="sans serif"
