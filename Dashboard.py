@@ -37,19 +37,24 @@ def padronizar_imagem(caminho, tamanho_final=(220, 220)):
 
 def criar_cartao_material(item):
     """
-    Cria a visualização final do cartão, com a cor do estoque ajustada.
+    Cria a visualização final do cartão, com layout e cor de texto ajustados.
     """
-    # Removido o 'height' fixo para um layout mais flexível e robusto
-    with st.container(border=True): 
+    # --- AJUSTE DE ALINHAMENTO ---
+    # Reintroduzimos a altura fixa para garantir que todos os cartões sejam idênticos
+    with st.container(border=True, height=420): 
         st.image(item['imagem_objeto'], use_container_width=True)
         st.markdown(f"<strong>{item['Descrição do Material']}</strong>", unsafe_allow_html=True)
         
-        # NM e MRP continuam como legenda (texto mais sutil)
         st.caption(f"NM: {item['NM']} | MRP: {item['MRP']}")
         
-        # --- ALTERAÇÃO APLICADA AQUI ---
-        # Saldo do Estoque agora usa st.write para ter a cor de texto principal (branca no tema escuro)
-        st.write(f"**Estoque:** {item['Saldo do Estoque']} {item['Unidade de Medida']}")
+        # --- AJUSTE DE COR E TAMANHO DA FONTE ---
+        # Usamos markdown com CSS inline para ter o tamanho pequeno com a cor branca
+        estoque_html = f"""
+        <p style="font-size: 0.9em; color: #FAFAFA;">
+            <strong>Estoque:</strong> {item['Saldo do Estoque']} {item['Unidade de Medida']}
+        </p>
+        """
+        st.markdown(estoque_html, unsafe_allow_html=True)
 
 # --- Lógica Principal do Dashboard ---
 df = carregar_dados()
