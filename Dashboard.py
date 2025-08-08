@@ -126,7 +126,7 @@ if df is not None:
                     df_da_classe = df_filtrado[df_filtrado['Classe'] == classe]
                     
                     # --- ALTERAÇÃO APLICADA AQUI ---
-                    num_colunas = 8
+                    num_colunas = 7
                     cols = st.columns(num_colunas)
                     
                     for index, item in df_da_classe.reset_index(drop=True).iterrows():
