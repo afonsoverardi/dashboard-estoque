@@ -6,22 +6,11 @@ from PIL import Image, ImageOps
 # --- Configuração da Página ---
 st.set_page_config(layout="wide", page_title="Estoque de Materiais")
 
-# --- CABEÇALHO COM LOGO E TÍTULO ---
-# Usamos colunas para alinhar a logo ao lado do título
-col1, col2 = st.columns([1, 4]) # A coluna do título é 4x maior que a da logo
-with col1:
-    try:
-        # O script vai procurar o arquivo 'petrobras_logo.png' na pasta principal do projeto
-        logo = Image.open("petrobras_logo.png")
-        st.image(logo, width=150) 
-    except FileNotFoundError:
-        # Mensagem que aparece se a logo não for encontrada no repositório
-        st.error("Logo 'petrobras_logo.png' não encontrada.")
-with col2:
-    st.title("Visão Geral do Estoque")
+# --- Título Principal ---
+# O título agora ocupa a largura total da página, pois a logo foi movida
+st.title("Visão Geral do Estoque")
 
-
-# --- Inicialização do Estado da Sessão (para a função de zoom) ---
+# --- Inicialização do Estado da Sessão ---
 if 'item_para_zoom' not in st.session_state:
     st.session_state.item_para_zoom = None
 
@@ -86,7 +75,6 @@ if df is not None:
 
     # LÓGICA DE EXIBIÇÃO: ZOOM OU GALERIA
     if st.session_state.item_para_zoom:
-        # .iloc[0] é a forma correta e mais simples de pegar a primeira linha do resultado
         item_selecionado = df[df['NM'] == st.session_state.item_para_zoom].iloc[0]
         
         st.header(f"Detalhe: {item_selecionado['Descrição do Material']}")
@@ -98,22 +86,31 @@ if df is not None:
         st.image(item_selecionado['caminho_original'], width=1200)
 
     else:
-        # Filtros e exibição da galeria
-        st.sidebar.header("Filtros")
-        termo_busca = st.sidebar.text_input("Buscar por Descrição:")
-        st.sidebar.subheader("Filtrar por Classe")
-        classes_unicas = sorted(df['Classe'].unique())
-        with st.sidebar.expander("Selecionar Classes", expanded=True):
-            selecionar_todas_classes = st.checkbox("Selecionar Todas", value=True, key='select_all_classes')
-            classes_selecionadas = [cls for cls in classes_unicas if st.checkbox(cls, value=selecionar_todas_classes, key=f"check_{cls}")]
+        # --- FILTROS E LOGO NA BARRA LATERAL ---
+        # A logo agora é o primeiro item da barra lateral
+        with st.sidebar:
+            try:
+                logo = Image.open("petrobras_logo.png")
+                st.image(logo, use_column_width=True)
+            except FileNotFoundError:
+                st.error("Logo não encontrada.")
+            
+            st.header("Filtros")
+            termo_busca = st.text_input("Buscar por Descrição:")
+            st.subheader("Filtrar por Classe")
+            classes_unicas = sorted(df['Classe'].unique())
+            with st.expander("Selecionar Classes", expanded=True):
+                selecionar_todas_classes = st.checkbox("Selecionar Todas", value=True, key='select_all_classes')
+                classes_selecionadas = [cls for cls in classes_unicas if st.checkbox(cls, value=selecionar_todas_classes, key=f"check_{cls}")]
+            
+            st.subheader("Filtrar por MRP")
+            df_filtrado_por_classe = df[df['Classe'].isin(classes_selecionadas)] if classes_selecionadas else df
+            mrps_disponiveis = sorted(df_filtrado_por_classe['MRP'].unique())
+            with st.expander("Selecionar MRPs", expanded=True):
+                selecionar_todos_mrps = st.checkbox("Selecionar Todos", value=True, key='select_all_mrps')
+                mrps_selecionados = [mrp for mrp in mrps_disponiveis if st.checkbox(mrp, value=selecionar_todos_mrps, key=f"check_{mrp}")]
         
-        st.sidebar.subheader("Filtrar por MRP")
-        df_filtrado_por_classe = df[df['Classe'].isin(classes_selecionadas)] if classes_selecionadas else df
-        mrps_disponiveis = sorted(df_filtrado_por_classe['MRP'].unique())
-        with st.sidebar.expander("Selecionar MRPs", expanded=True):
-            selecionar_todos_mrps = st.checkbox("Selecionar Todos", value=True, key='select_all_mrps')
-            mrps_selecionados = [mrp for mrp in mrps_disponiveis if st.checkbox(mrp, value=selecionar_todos_mrps, key=f"check_{mrp}")]
-        
+        # Aplicação dos filtros
         df_filtrado = df
         if classes_selecionadas: df_filtrado = df_filtrado[df_filtrado['Classe'].isin(classes_selecionadas)]
         if mrps_selecionados: df_filtrado = df_filtrado[df_filtrado['MRP'].isin(mrps_selecionados)]
