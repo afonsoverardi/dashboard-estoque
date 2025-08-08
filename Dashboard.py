@@ -6,7 +6,10 @@ from PIL import Image, ImageOps
 # --- Configuração da Página ---
 st.set_page_config(layout="wide", page_title="Estoque de Materiais")
 
-# --- Inicialização do Estado da Sessão (para a função de zoom) ---
+# --- Título Principal ---
+st.title("Visão Geral do Estoque")
+
+# --- Inicialização do Estado da Sessão ---
 if 'item_para_zoom' not in st.session_state:
     st.session_state.item_para_zoom = None
 
@@ -39,23 +42,14 @@ def padronizar_imagem(caminho, tamanho_final=(220, 220)):
     except Exception: return placeholder_url
 
 def criar_cartao_material(item):
-    """Cria o cartão com layout final e ícone de zoom funcional."""
+    """Cria o cartão com o ícone de zoom."""
     with st.container(border=True, height=420):
         st.image(item['imagem_objeto'], use_container_width=True)
         st.markdown(f"<strong>{item['Descrição do Material']}</strong>", unsafe_allow_html=True)
 
         col_info, col_zoom = st.columns([4, 1])
         with col_info:
-            st.caption(f"NM: {item['NM']} | MRP: {item['MRP']}")
-            
-            # Texto do estoque com fonte pequena e cor branca (via CSS inline)
-            estoque_html = f"""
-            <p style="font-size: 0.9em; color: #FAFAFA;">
-                <strong>Estoque:</strong> {item['Saldo do Estoque']} {item['Unidade de Medida']}
-            </p>
-            """
-            st.markdown(estoque_html, unsafe_allow_html=True)
-        
+            st.caption(f"NM: {item['NM']} | MRP: {item['MRP']}\n**Estoque:** {item['Saldo do Estoque']} {item['Unidade de Medida']}")
         with col_zoom:
             if st.button("🔍", key=f"zoom_{item['NM']}", help="Ampliar imagem"):
                 st.session_state.item_para_zoom = item['NM']
@@ -65,7 +59,11 @@ def criar_cartao_material(item):
 df = carregar_dados()
 
 if df is not None:
-    # Preparação dos dados de imagem (colunas para thumbnail e para zoom)
+    # --- AJUSTE DE ORDENAÇÃO APLICADO AQUI ---
+    # Garante que o dataframe seja ordenado pela descrição do material logo após o carregamento
+    df = df.sort_values(by='Descrição do Material').reset_index(drop=True)
+
+    # Preparação dos dados de imagem
     df['NM'] = df['NM'].astype(str)
     caminho_base_imagens = "Imagens"
     def obter_caminho_real(nm):
@@ -78,9 +76,8 @@ if df is not None:
     df['caminho_original'] = df['NM'].apply(obter_caminho_real)
     df['imagem_objeto'] = df['caminho_original'].apply(padronizar_imagem)
 
-    # LÓGICA DE EXIBIÇÃO: MODO ZOOM OU MODO GALERIA
+    # LÓGICA DE EXIBIÇÃO: ZOOM OU GALERIA
     if st.session_state.item_para_zoom:
-        # Se um item foi selecionado, exibe a tela de zoom
         item_selecionado = df[df['NM'] == st.session_state.item_para_zoom].iloc[0]
         
         st.header(f"Detalhe: {item_selecionado['Descrição do Material']}")
@@ -92,9 +89,7 @@ if df is not None:
         st.image(item_selecionado['caminho_original'], width=1200)
 
     else:
-        # Se nenhum item estiver selecionado, exibe a galeria principal
-        st.title("Visão Geral do Estoque")
-        
+        # --- FILTROS E LOGO NA BARRA LATERAL ---
         with st.sidebar:
             try:
                 logo = Image.open("petrobras_logo.png")
@@ -117,6 +112,7 @@ if df is not None:
                 selecionar_todos_mrps = st.checkbox("Selecionar Todos", value=True, key='select_all_mrps')
                 mrps_selecionados = [mrp for mrp in mrps_disponiveis if st.checkbox(mrp, value=selecionar_todos_mrps, key=f"check_{mrp}")]
         
+        # Aplicação dos filtros
         df_filtrado = df
         if classes_selecionadas: df_filtrado = df_filtrado[df_filtrado['Classe'].isin(classes_selecionadas)]
         if mrps_selecionados: df_filtrado = df_filtrado[df_filtrado['MRP'].isin(mrps_selecionados)]
@@ -131,9 +127,12 @@ if df is not None:
             classes_para_exibir = sorted(df_filtrado['Classe'].unique())
             for classe in classes_para_exibir:
                 with st.expander(f"**Classe: {classe}** ({len(df_filtrado[df_filtrado['Classe'] == classe])} itens)", expanded=True):
-                    df_da_classe = df_filtrado[df_filtrado['Classe'] == classe]
+                    # Ordena os itens DENTRO de cada classe também
+                    df_da_classe = df_filtrado[df_filtrado['Classe'] == classe].sort_values(by='Descrição do Material')
+                    
                     num_colunas = 7
                     cols = st.columns(num_colunas)
+                    
                     for index, item in df_da_classe.reset_index(drop=True).iterrows():
                         col_atual = cols[index % num_colunas]
                         with col_atual:
