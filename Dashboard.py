@@ -19,10 +19,13 @@ def carregar_dados():
     caminho_excel = 'Controle de Materiais Estoque.xlsx'
     try:
         df = pd.read_excel(caminho_excel)
+        # Garante que as colunas essenciais existam e preenche valores nulos
         if 'Classe' not in df.columns: df['Classe'] = 'Sem Classe'
         else: df['Classe'] = df['Classe'].fillna('Sem Classe')
         if 'MRP' not in df.columns: df['MRP'] = 'N/A'
         else: df['MRP'] = df['MRP'].fillna('N/A')
+        if 'Última Atualização' not in df.columns: df['Última Atualização'] = "Não disponível"
+        else: df['Última Atualização'] = df['Última Atualização'].fillna("Não disponível")
         return df
     except FileNotFoundError:
         st.error(f"ERRO: A planilha de dados '{caminho_excel}' não foi encontrada no repositório.")
@@ -49,18 +52,13 @@ def criar_cartao_material(item):
 
         col_info, col_zoom = st.columns([4, 1])
         with col_info:
-            # NM e MRP continuam como legenda (texto sutil)
             st.caption(f"NM: {item['NM']} | MRP: {item['MRP']}")
-            
-            # --- CORREÇÃO APLICADA AQUI ---
-            # Saldo do Estoque usa markdown com CSS para ter fonte pequena e cor branca
             estoque_html = f"""
             <p style="font-size: 0.9em; color: #FAFAFA; margin-bottom: 0;">
                 <strong>Estoque:</strong> {item['Saldo do Estoque']} {item['Unidade de Medida']}
             </p>
             """
             st.markdown(estoque_html, unsafe_allow_html=True)
-
         with col_zoom:
             if st.button("🔍", key=f"zoom_{item['NM']}", help="Ampliar imagem"):
                 st.session_state.item_para_zoom = item['NM']
@@ -89,23 +87,26 @@ if df is not None:
     # LÓGICA DE EXIBIÇÃO: ZOOM OU GALERIA
     if st.session_state.item_para_zoom:
         item_selecionado = df[df['NM'] == st.session_state.item_para_zoom].iloc[0]
-        
         st.header(f"Detalhe: {item_selecionado['Descrição do Material']}")
-        
         if st.button("⬅️ Voltar para a Galeria"):
             st.session_state.item_para_zoom = None
             st.rerun()
-            
         st.image(item_selecionado['caminho_original'], width=1200)
 
     else:
-        # --- FILTROS E LOGO NA BARRA LATERAL ---
+        # --- FILTROS, LOGO E DATA NA BARRA LATERAL ---
         with st.sidebar:
             try:
                 logo = Image.open("petrobras_logo.png")
                 st.image(logo, use_container_width=True)
             except FileNotFoundError:
                 st.error("Logo não encontrada.")
+            
+            # --- ALTERAÇÃO APLICADA AQUI ---
+            # Exibe a data da última atualização com fonte pequena (caption)
+            if not df.empty:
+                ultima_atualizacao = df['Última Atualização'].iloc[0]
+                st.caption(f"Dados atualizados em:  \n{ultima_atualizacao}")
             
             st.header("Filtros")
             termo_busca = st.text_input("Buscar por Descrição:")
@@ -134,16 +135,12 @@ if df is not None:
         if df_filtrado.empty:
             st.warning("Nenhum item corresponde aos filtros selecionados.")
         else:
-            # Ordena as classes para exibição alfabética
             classes_para_exibir = sorted(df_filtrado['Classe'].unique())
             for classe in classes_para_exibir:
                 with st.expander(f"**Classe: {classe}** ({len(df_filtrado[df_filtrado['Classe'] == classe])} itens)", expanded=True):
-                    # Pega os itens da classe e garante que eles também estejam ordenados pela descrição
-                    df_da_classe = df_filtrado[df_filtrado['Classe'] == classe] # A ordenação principal do df já se aplica aqui
-                    
+                    df_da_classe = df_filtrado[df_filtrado['Classe'] == classe]
                     num_colunas = 7
                     cols = st.columns(num_colunas)
-                    
                     for index, item in df_da_classe.reset_index(drop=True).iterrows():
                         col_atual = cols[index % num_colunas]
                         with col_atual:
