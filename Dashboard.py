@@ -5,8 +5,6 @@ from PIL import Image, ImageOps
 
 # --- Configuração da Página ---
 st.set_page_config(layout="wide", page_title="Estoque de Materiais")
-
-# --- Título Principal ---
 st.title("Visão Geral do Estoque da Segurança Ocupacional")
 
 # --- Inicialização do Estado da Sessão ---
@@ -43,6 +41,18 @@ def padronizar_imagem(caminho, tamanho_final=(220, 220)):
         return img_padronizada
     except Exception: return placeholder_url
 
+# --- NOVA FUNÇÃO PARA FORMATAR NÚMEROS ---
+def formatar_estoque(numero):
+    """Formata um número para o padrão brasileiro."""
+    # Se o número for um float e for um inteiro (ex: 16.0), converte para int (16)
+    if isinstance(numero, float) and numero.is_integer():
+        return f"{int(numero)}"
+    # Se for um float com decimais, troca o ponto por vírgula
+    if isinstance(numero, float):
+        return str(numero).replace('.', ',')
+    # Para outros casos (int, str, etc.), apenas retorna como string
+    return str(numero)
+
 def criar_cartao_material(item):
     """Cria o cartão com o ícone de zoom e a cor do estoque corrigida."""
     with st.container(border=True, height=420):
@@ -53,11 +63,11 @@ def criar_cartao_material(item):
         with col_info:
             st.caption(f"NM: {item['NM']} | MRP: {item['MRP']}")
             
-            # --- CORREÇÃO APLICADA AQUI ---
-            # Saldo do Estoque usa markdown com CSS para ter fonte pequena e cor branca
+            # Aplica a nova função de formatação ao saldo do estoque
+            saldo_formatado = formatar_estoque(item['Saldo do Estoque'])
             estoque_html = f"""
             <p style="font-size: 0.9em; color: #FAFAFA; margin-bottom: 0;">
-                <strong>Estoque:</strong> {item['Saldo do Estoque']} {item['Unidade de Medida']}
+                <strong>Estoque:</strong> {saldo_formatado} {item['Unidade de Medida']}
             </p>
             """
             st.markdown(estoque_html, unsafe_allow_html=True)
